@@ -1,43 +1,195 @@
 # Dekiru::DataMigration
 
-TODO: Delete this and the text below, and describe your gem
+A Ruby on Rails library for executing data migration tasks safely and efficiently.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/dekiru/data_migration`. To experiment with that code, run `bin/console` for an interactive prompt.
+## Overview
 
-## Installation
+`Dekiru::DataMigration` provides the following features for data migration tasks:
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+- **Progress Display**: Real-time progress visualization during processing
+- **Transaction Management**: Automatic transaction control to ensure data safety
+- **Execution Confirmation**: Confirmation prompts before committing changes
+- **Side Effect Monitoring**: Tracking of database queries, job enqueuing, and email sending
+- **Logging**: Detailed execution logging
 
-Install the gem and add to the application's Gemfile by executing:
+## Data Migration Operator
 
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+You can implement the necessary processing for data migration tasks with scripts like the following:
+
+```ruby
+# scripts/demo.rb
+Dekiru::DataMigration::Operator.execute('Grant admin privileges to users') do
+  targets = User.where("email LIKE '%sonicgarden%'")
+
+  log "Target user count: #{targets.count}"
+  find_each_with_progress(targets) do |user|
+    user.update!(admin: true)
+  end
+
+  log "Updated user count: #{User.where("email LIKE '%sonicgarden%'").where(admin: true).count}"
+end
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+Execution result:
+```
+$ bin/rails r scripts/demo.rb
+Start: Grant admin privileges to users at 2019-05-24 18:29:57 +0900
 
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+Target user count: 30
+Time: 00:00:00 |=================>>| 100% Progress
+Updated user count: 30
+
+Are you sure to commit? (yes/no) > yes
+
+Finished successfully: Grant admin privileges to users
+Total time: 6.35 sec
 ```
 
-## Usage
+## Side Effect Monitoring
 
-TODO: Write usage instructions here
+By executing with the `warning_side_effects: true` option, side effects that occur during data migration tasks (database writes, job enqueuing, email sending, etc.) will be displayed.
 
-## Development
+```ruby
+Dekiru::DataMigration::Operator.execute('Grant admin privileges to users', warning_side_effects: true) do
+  # Processing content...
+end
+```
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+Execution result:
+```
+$ bin/rails r scripts/demo.rb
+Start: Grant admin privileges to users at 2019-05-24 18:29:57 +0900
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+Target user count: 30
+Time: 00:00:00 |=================>>| 100% Progress
+Updated user count: 30
 
-## Contributing
+Write Queries!!
+30 call: Update "users" SET ...
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/dekiru-data_migration. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/dekiru-data_migration/blob/main/CODE_OF_CONDUCT.md).
+Enqueued Jobs!!
+10 call: NotifyJob
 
-## License
+Delivered Mailers!!
+10 call: UserMailer
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+Are you sure to commit? (yes/no) > yes
+```
 
-## Code of Conduct
+## Generating Maintenance Scripts
 
-Everyone interacting in the Dekiru::DataMigration project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/dekiru-data_migration/blob/main/CODE_OF_CONDUCT.md).
+You can generate maintenance scripts that use `Dekiru::DataMigration::Operator` with the generator. The filename will be prefixed with the execution date.
+
+```bash
+$ bin/rails g maintenance_script demo_migration
+```
+
+Generated file example:
+```ruby
+# scripts/20230118_demo_migration.rb
+# frozen_string_literal: true
+
+Dekiru::DataMigration::Operator.execute('demo_migration') do
+  # write here
+end
+```
+
+### Output Directory Configuration
+
+The output directory for files is by default the `scripts` directory directly under the application root. You can change the output directory through configuration.
+
+```ruby
+# config/initializers/dekiru.rb
+Dekiru::DataMigration.configure do |config|
+  config.maintenance_script_directory = 'scripts/maintenance'
+end
+```
+
+## Custom Transaction Management
+
+For scripts using `Dekiru::DataMigration::Operator`, there are cases where the default `ActiveRecord::Base.transaction` transaction handling is insufficient, such as when writing to multiple databases is required.
+
+You can modify the transaction handling behavior of `Dekiru::DataMigration::Operator` by customizing `Dekiru::DataMigration::TransactionProvider`.
+
+### Implementation Example
+
+Here's an example configuration for applications using multiple databases.
+
+#### Application-side Configuration
+
+```ruby
+# app/models/legacy_record.rb
+class LegacyRecord < ApplicationRecord
+  connects_to database: { writing: :legacy, reading: :legacy }
+end
+
+# app/models/application_record.rb
+class ApplicationRecord < ActiveRecord::Base
+  connects_to database: { writing: :primary, reading: :primary }
+
+  def self.with_legacy_transaction
+    ActiveRecord::Base.transaction do
+      LegacyRecord.transaction do
+        yield
+      end
+    end
+  end
+end
+```
+
+#### Custom TransactionProvider Configuration
+
+To configure `Dekiru::DataMigration::Operator` to also use `ApplicationRecord.with_legacy_transaction` for transaction handling, set up the following configuration:
+
+```ruby
+# config/initializers/dekiru.rb
+class MyTransactionProvider < Dekiru::DataMigration::TransactionProvider
+  def within_transaction(&)
+    ApplicationRecord.with_legacy_transaction(&)
+  end
+end
+
+Dekiru::DataMigration.configure do |config|
+  config.transaction_provider = MyTransactionProvider.new
+end
+```
+
+## Available Configuration Options
+
+### Basic Configuration
+
+```ruby
+# config/initializers/dekiru.rb
+Dekiru::DataMigration.configure do |config|
+  # Output directory for maintenance scripts (default: "scripts")
+  config.maintenance_script_directory = 'scripts/maintenance'
+
+  # Custom transaction provider (default: Dekiru::DataMigration::TransactionProvider.new)
+  config.transaction_provider = MyTransactionProvider.new
+end
+```
+
+### Runtime Options
+
+```ruby
+Dekiru::DataMigration::Operator.execute('Title', options) do
+  # Processing content
+end
+```
+
+Available options:
+- `warning_side_effects`: Display side effects (default: true)
+- `without_transaction`: Don't use transactions (default: false)
+- `logger`: Custom logger (default: auto-generated)
+- `output`: Output destination (default: $stdout)
+
+## Key Methods
+
+### `log(message)`
+Outputs log messages. Properly handled even during progress bar display.
+
+### `find_each_with_progress(scope, options = {}, &block)`
+Executes `find_each` with a progress bar for ActiveRecord scopes.
+
+### `each_with_progress(enum, options = {}, &block)`
+Executes processing with a progress bar for any Enumerable objects.
