@@ -1,0 +1,51 @@
+module Dekiru
+  module DataMigration
+    class Operator
+      class NestedTransactionError < StandardError
+      end
+
+      attr_reader title: String
+      attr_reader stream: IO
+      attr_reader logger: Logger?
+      attr_reader result: bool?
+      attr_reader canceled: bool?
+      attr_reader started_at: Time?
+      attr_reader ended_at: Time?
+      attr_reader error: Exception?
+
+      def self.execute: (String title, Hash[Symbol, untyped] options) { () -> void } -> bool
+
+      def initialize: (String title, Hash[Symbol, untyped] options) -> void
+
+      def execute: () { () -> void } -> bool
+
+      def duration: () -> Float
+
+      def each_with_progress: [T] (Enumerable[T] enum, Hash[Symbol, untyped] options) { (T) -> void } -> void
+
+      def find_each_with_progress: (untyped target_scope, Hash[Symbol, untyped] options) { (untyped) -> void } -> void
+
+      private
+
+      def log: (String message) -> void
+
+      def confirm?: (?String message) -> bool
+
+      def newline: () -> void
+
+      def cancel!: () -> void
+
+      def handle_notification: (*untyped args) -> void
+
+      def increment_side_effects: (Symbol type, String value) -> void
+
+      def warning_side_effects: () { () -> void } -> void
+
+      def run: () { () -> void } -> void
+
+      def transaction_provider: () -> untyped
+
+      def current_transaction_open?: () -> bool
+    end
+  end
+end
