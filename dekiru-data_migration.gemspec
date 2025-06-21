@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = "TODO: Write a short summary, because RubyGems requires one."
   spec.description = "TODO: Write a longer description or delete this line."
-  spec.homepage = "TODO: Put your gem's website or public repo URL here."
+  spec.homepage = "https://github.com/SonicGarden/dekiru-data_migration"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1.0"
 
