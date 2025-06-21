@@ -12,6 +12,26 @@ A Ruby on Rails library for executing data migration tasks safely and efficientl
 - **Side Effect Monitoring**: Tracking of database queries, job enqueuing, and email sending
 - **Logging**: Detailed execution logging
 
+## Installation
+
+Add this line to your application's Gemfile:
+
+```ruby
+gem 'dekiru-data_migration'
+```
+
+And then execute:
+
+```bash
+$ bundle install
+```
+
+Or install it yourself as:
+
+```bash
+$ gem install dekiru-data_migration
+```
+
 ## Data Migration Operator
 
 You can implement the necessary processing for data migration tasks with scripts like the following:
