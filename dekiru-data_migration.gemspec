@@ -9,7 +9,9 @@ Gem::Specification.new do |spec|
   spec.email = ["info@sonicgarden.jp"]
 
   spec.summary = "A Ruby on Rails library for executing data migration tasks safely and efficiently."
-  spec.description = "Dekiru::DataMigration provides features for data migration tasks including progress display, transaction management, execution confirmation, side effect monitoring, and detailed logging."
+  spec.description =
+    "Dekiru::DataMigration provides features for data migration tasks including progress display, " \
+    "transaction management, execution confirmation, side effect monitoring, and detailed logging."
   spec.homepage = "https://github.com/SonicGarden/dekiru-data_migration"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1.0"
