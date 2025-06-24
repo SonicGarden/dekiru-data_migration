@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+using Dekiru::DataMigration::DangerousMethodGuard
+
 Dekiru::DataMigration::Operator.execute('<%= @name %>') do
   # write here
 end

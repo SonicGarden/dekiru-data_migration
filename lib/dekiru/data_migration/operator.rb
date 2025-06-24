@@ -2,6 +2,7 @@
 
 require "active_support/all"
 require "ruby-progressbar"
+require_relative "dangerous_method_guard"
 
 module Dekiru
   module DataMigration
