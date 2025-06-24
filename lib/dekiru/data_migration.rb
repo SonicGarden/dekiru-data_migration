@@ -2,6 +2,7 @@
 
 require_relative "data_migration/version"
 require_relative "data_migration/transaction_provider"
+require_relative "data_migration/migration"
 require_relative "data_migration_operator"
 
 module Dekiru

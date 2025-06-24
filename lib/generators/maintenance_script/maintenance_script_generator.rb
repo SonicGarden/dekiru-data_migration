@@ -14,8 +14,11 @@ class MaintenanceScriptGenerator < Rails::Generators::NamedBase
   source_root File.expand_path("templates", __dir__)
 
   def copy_maintenance_script_file
+    @filename_date = filename_date
+    @class_name = "#{name.classify}#{@filename_date}"
+
     template "maintenance_script.rb.erb",
-             "#{Dekiru::DataMigration.configuration.maintenance_script_directory}/#{filename_date}_#{file_name}.rb"
+             "#{Dekiru::DataMigration.configuration.maintenance_script_directory}/#{@filename_date}_#{file_name}.rb"
   end
 
   private
