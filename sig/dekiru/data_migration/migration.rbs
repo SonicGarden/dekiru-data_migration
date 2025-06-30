@@ -1,0 +1,23 @@
+module Dekiru
+  module DataMigration
+    class Migration
+      def self.run: (?Hash[Symbol, untyped] options) -> bool
+
+      def title: () -> String
+
+      def migrate: () -> void
+
+      def migration_targets: () -> untyped
+
+      def migrate_record: (untyped record) -> void
+
+      private
+
+      def log: (String message) -> void
+
+      def find_each_with_progress: (untyped scope, ?Hash[Symbol, untyped] options) { (untyped) -> void } -> void
+
+      def each_with_progress: [T] (Enumerable[T] enum, ?Hash[Symbol, untyped] options) { (T) -> void } -> void
+    end
+  end
+end

@@ -50,6 +50,60 @@ Dekiru::DataMigration::Operator.execute('Grant admin privileges to users') do
 end
 ```
 
+## Data Migration Class (Recommended)
+
+You can also define migration logic as a class, which makes testing easier:
+
+```ruby
+# scripts/20230118_demo_migration.rb
+class DemoMigration < Dekiru::DataMigration::Migration
+  def migration_targets
+    User.where("email LIKE '%sonicgarden%'").where(admin: false)
+  end
+
+  def migrate_record(user)
+    user.update!(admin: true)
+  end
+
+  def migrate
+    super
+    log "Updated user count: #{User.where(admin: true).count}"
+  end
+end
+
+DemoMigration.run
+```
+
+### Testing Migration Classes
+
+The class-based approach makes it easy to write unit tests:
+
+```ruby
+# spec/migrations/demo_migration_spec.rb
+RSpec.describe DemoMigration do
+  let(:migration) { described_class.new }
+
+  describe '#migration_targets' do
+    it 'returns correct migration targets' do
+      create_list(:user, 3, email: 'test@sonicgarden.jp', admin: false)
+      create_list(:user, 2, email: 'other@example.com', admin: false)
+
+      targets = migration.migration_targets
+      expect(targets.count).to eq(3)
+      expect(targets.all? { |u| u.email.include?('sonicgarden') }).to be true
+    end
+  end
+
+  describe '#migrate_record' do
+    it 'updates user to admin' do
+      user = create(:user, admin: false)
+      expect { migration.migrate_record(user) }
+        .to change { user.reload.admin }.from(false).to(true)
+    end
+  end
+end
+```
+
 Execution result:
 ```
 $ bin/rails r scripts/demo.rb
@@ -98,7 +152,7 @@ Are you sure to commit? (yes/no) > yes
 
 ## Generating Maintenance Scripts
 
-You can generate maintenance scripts that use `Dekiru::DataMigration::Operator` with the generator. The filename will be prefixed with the execution date.
+You can generate maintenance scripts that use `Dekiru::DataMigration::Migration` with the generator. The filename will be prefixed with the execution date.
 
 ```bash
 $ bin/rails g maintenance_script demo_migration
@@ -109,6 +163,29 @@ Generated file example:
 # scripts/20230118_demo_migration.rb
 # frozen_string_literal: true
 
+class DemoMigration < Dekiru::DataMigration::Migration
+  def migration_targets
+    # 移行対象を返すActiveRecord::Relationを定義
+    # 例: User.where(some_condition: true)
+    raise NotImplementedError, 'migration_targets method must be implemented'
+  end
+
+  def migrate_record(record)
+    # 個別レコードの更新処理を定義
+    # 例: record.update!(some_attribute: new_value)
+    raise NotImplementedError, 'migrate_record method must be implemented'
+  end
+end
+
+DemoMigration.run
+```
+
+### Legacy Block-based Approach
+
+For backward compatibility, you can still use the block-based approach:
+
+```ruby
+# scripts/legacy_demo.rb
 Dekiru::DataMigration::Operator.execute('demo_migration') do
   # write here
 end

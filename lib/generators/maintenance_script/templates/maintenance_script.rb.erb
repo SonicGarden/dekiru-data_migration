@@ -2,6 +2,20 @@
 
 using Dekiru::DataMigration::DangerousMethodGuard
 
-Dekiru::DataMigration::Operator.execute('<%= @name %>') do
-  # write here
+class <%= @class_name %> < Dekiru::DataMigration::Migration
+  def title
+    '<%= @name %>'
+  end
+
+  def migration_targets
+    # Define ActiveRecord::Relation that returns the target migration
+    # User.where(some_condition: true)
+  end
+
+  def migrate_record(record)
+    # Define the update process for individual records
+    # user.update!(some_attribute: new_value)
+  end
 end
+
+<%= @class_name %>.run if __FILE__ == $PROGRAM_NAME
