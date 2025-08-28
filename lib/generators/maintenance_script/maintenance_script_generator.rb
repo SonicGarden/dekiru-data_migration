@@ -16,9 +16,11 @@ class MaintenanceScriptGenerator < Rails::Generators::NamedBase
   def copy_maintenance_script_file
     @filename_date = filename_date
     @class_name = "#{name.classify}#{@filename_date}"
+    script_filename = "#{@filename_date}_#{file_name}.rb"
+    @prefix = Dekiru::DataMigration.configuration.maintenance_script_prefix&.call(script_filename)
 
     template "maintenance_script.rb.erb",
-             "#{Dekiru::DataMigration.configuration.maintenance_script_directory}/#{@filename_date}_#{file_name}.rb"
+             "#{Dekiru::DataMigration.configuration.maintenance_script_directory}/#{script_filename}"
   end
 
   private

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
-
+<% if @prefix.present? %>
+<%= @prefix %>
+<% end %>
 using Dekiru::DataMigration::DangerousMethodGuard
 
 class <%= @class_name %> < Dekiru::DataMigration::Migration

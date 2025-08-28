@@ -25,7 +25,7 @@ module Dekiru
 
     # Configuration class for Dekiru Data Migration.
     class Configuration
-      attr_accessor :maintenance_script_directory, :transaction_provider
+      attr_accessor :maintenance_script_directory, :transaction_provider, :maintenance_script_prefix
 
       def initialize
         @maintenance_script_directory = "scripts"
