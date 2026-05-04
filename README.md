@@ -290,3 +290,21 @@ Executes `find_each` with a progress bar for ActiveRecord scopes.
 
 ### `each_with_progress(enum, options = {}, &block)`
 Executes processing with a progress bar for any Enumerable objects.
+
+## Agent Skills
+
+This repository provides an agent skill for creating data migration scripts.
+
+### Available Skills
+
+#### `data-migration-script`
+
+Automatically creates data migration and deletion scripts using the `dekiru-data_migration` gem.
+
+**Triggers**: The agent will use this skill when you ask to "create a data migration script", "create a script to delete unnecessary records", or similar requests involving DB operations via scripts (bulk updates, deleting orphaned records, deleting ActiveStorage files, etc.).
+
+**Install**:
+
+```bash
+gh skill install SonicGarden/dekiru-data_migration
+```
