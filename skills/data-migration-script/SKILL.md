@@ -1,6 +1,6 @@
 ---
 name: data-migration-script
-description: Skill for creating data migration and deletion scripts using the dekiru-data_migration gem in the social-apartment project. Always use this skill when asked to "create a script using dekiru-data_migration", "create a data migration script", "create a script to delete unnecessary records", or "turn this into a script". Use proactively for DB operations via scripts such as deleting orphaned records after feature removal or code changes, bulk data updates, and deleting ActiveStorage files.
+description: Creates data migration and deletion scripts using the dekiru-data_migration gem. Use when asked to "create a data migration script", "create a script to delete unnecessary records", or "turn this into a script", and for script-based DB operations such as deleting orphaned records after feature removal and bulk data updates.
 license: MIT
 ---
 
@@ -23,8 +23,8 @@ Before writing a script, confirm the following:
 bin/rails generate maintenance_script <PascalCaseName>
 ```
 
-- `<PascalCaseName>` is the name describing the operation in PascalCase (e.g., `DeleteDeliveryNotificationImages`)
-- Generated file: `scripts/YYYYMMDD_delete_delivery_notification_images.rb`
+- `<PascalCaseName>` is the name describing the operation in PascalCase (e.g., `DeleteOrphanedImages`)
+- Generated file: `scripts/YYYYMMDD_<snake_case_name>.rb`
 - Today's date (8 digits) is automatically appended to the class name
 
 ### 2. Edit the generated file

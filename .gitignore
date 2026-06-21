@@ -10,3 +10,6 @@
 # rspec failure tracking
 .rspec_status
 Gemfile.lock
+
+# Japanese source for skills (maintenance reference, not distributed)
+SKILL-ja.md
