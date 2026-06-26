@@ -74,6 +74,41 @@ end
 DemoMigration.run
 ```
 
+### Batch Processing with `migrate_batch`
+
+When you need to update or delete a large number of records efficiently, you can define `migrate_batch` instead of `migrate_record`. It processes records in batches using ActiveRecord's `in_batches`, yielding each batch as an `ActiveRecord::Relation` so you can run a single `update_all` / `delete_all` query per batch. The progress bar advances per batch rather than per record.
+
+`migrate_batch` and `migrate_record` are mutually exclusive — if you implement `migrate_batch`, the batch path is used automatically.
+
+```ruby
+# scripts/20230118_deactivate_stale_users.rb
+class DeactivateStaleUsersMigration < Dekiru::DataMigration::Migration
+  def migration_targets
+    User.where(active: true).where("last_login_at < ?", 1.year.ago)
+  end
+
+  def migrate_batch(relation)
+    relation.update_all(active: false)
+  end
+end
+
+DeactivateStaleUsersMigration.run
+```
+
+If you use the block-based `Operator` directly, pass `in_batches` to `each_with_progress`:
+
+```ruby
+# scripts/deactivate_stale_users.rb
+Dekiru::DataMigration::Operator.execute('Deactivate stale users') do
+  targets = User.where(active: true).where("last_login_at < ?", 1.year.ago)
+
+  log "Target user count: #{targets.count}"
+  each_with_progress(targets.in_batches) do |batch|
+    batch.update_all(active: false)
+  end
+end
+```
+
 ### Testing Migration Classes
 
 The class-based approach makes it easy to write unit tests:
