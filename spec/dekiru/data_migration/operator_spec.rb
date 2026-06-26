@@ -64,7 +64,7 @@ RSpec.describe Dekiru::DataMigration::Operator do
   end
 
   describe "#execute" do
-    it "confirm で yes" do
+    it "commits when confirm is yes" do
       allow($stdin).to receive(:gets) do
         "yes\n"
       end
@@ -84,7 +84,7 @@ RSpec.describe Dekiru::DataMigration::Operator do
       expect(operator.stream.out).to include("Total time:")
     end
 
-    it "confirm で no" do
+    it "rolls back when confirm is no" do
       allow($stdin).to receive(:gets) do
         "no\n"
       end
@@ -104,7 +104,7 @@ RSpec.describe Dekiru::DataMigration::Operator do
       expect(operator.stream.out).to include("Total time:")
     end
 
-    it "処理中に例外" do
+    it "raises when an exception occurs during processing" do
       expect do
         operator.execute { raise ArgumentError }
       end.to raise_error(ArgumentError)
@@ -116,10 +116,10 @@ RSpec.describe Dekiru::DataMigration::Operator do
       expect(operator.stream.out).to include("Total time:")
     end
 
-    context "トランザクション内で呼び出された場合" do
+    context "when called inside a transaction" do
       before { allow(operator).to receive(:current_transaction_open?) { true } }
 
-      it "例外が発生すること" do
+      it "raises an error" do
         expect do
           operator.execute do
             log "processing"
@@ -129,10 +129,10 @@ RSpec.describe Dekiru::DataMigration::Operator do
       end
     end
 
-    context "without_transaction: true のとき" do
+    context "with without_transaction: true" do
       let(:without_transaction) { true }
 
-      it "トランザクションがかからないこと" do
+      it "does not wrap the work in a transaction" do
         expect do
           operator.execute do
             log "processing"
@@ -151,7 +151,7 @@ RSpec.describe Dekiru::DataMigration::Operator do
   end
 
   describe "#each_with_progress" do
-    it "進捗が表示される" do
+    it "displays progress" do
       record = (0...10)
 
       allow($stdin).to receive(:gets) do
@@ -174,7 +174,7 @@ RSpec.describe Dekiru::DataMigration::Operator do
       expect(operator.stream.out).to include("Total time:")
     end
 
-    it "total をオプションで渡すことができる" do
+    it "accepts total as an option" do
       allow($stdin).to receive(:gets) do
         "yes\n"
       end
@@ -197,7 +197,7 @@ RSpec.describe Dekiru::DataMigration::Operator do
   end
 
   describe "#find_each_with_progress" do
-    it "進捗が表示される" do
+    it "displays progress" do
       record = (0...10).to_a.tap do |r|
         r.singleton_class.alias_method(:find_each, :each)
       end
@@ -222,7 +222,7 @@ RSpec.describe Dekiru::DataMigration::Operator do
       expect(operator.stream.out).to include("Total time:")
     end
 
-    it "total をオプションで渡すことができる" do
+    it "accepts total as an option" do
       allow($stdin).to receive(:gets) do
         "yes\n"
       end
