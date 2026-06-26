@@ -18,14 +18,20 @@ module Dekiru
         self.class.name.demodulize.underscore.humanize
       end
 
-      def migrate
+      def migrate # rubocop:disable Metrics/MethodLength
         targets = migration_targets
 
         log "Target count: #{targets.count}"
         confirm?
 
-        find_each_with_progress(targets) do |record|
-          migrate_record(record)
+        if migrate_batch_overridden?
+          each_with_progress(targets.in_batches) do |batch|
+            migrate_batch(batch)
+          end
+        else
+          find_each_with_progress(targets) do |record|
+            migrate_record(record)
+          end
         end
 
         log "Migration completed"
@@ -39,7 +45,15 @@ module Dekiru
         raise NotImplementedError, "#{self.class}#migrate_record must be implemented"
       end
 
+      def migrate_batch(relation)
+        raise NotImplementedError, "#{self.class}#migrate_batch must be implemented"
+      end
+
       private
+
+      def migrate_batch_overridden?
+        self.class.instance_method(:migrate_batch).owner != Dekiru::DataMigration::Migration
+      end
 
       def confirm?
         if @operator_context

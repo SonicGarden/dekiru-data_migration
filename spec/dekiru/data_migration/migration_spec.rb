@@ -3,7 +3,7 @@
 require "spec_helper"
 require "ostruct"
 
-# テスト用のダミークラス
+# Dummy class for testing
 class TestMigration < Dekiru::DataMigration::Migration
   attr_reader :targets, :migrated_records
 
@@ -14,10 +14,10 @@ class TestMigration < Dekiru::DataMigration::Migration
   end
 
   def migration_targets
-    # テスト用のスコープをシミュレート
+    # Simulate a scope for testing
     scope = OpenStruct.new(count: @targets.size)
 
-    # find_eachメソッドをオーバーライド
+    # Override the find_each method
     scope.define_singleton_method(:find_each) do |&block|
       @targets.each(&block)
     end
@@ -31,22 +31,49 @@ class TestMigration < Dekiru::DataMigration::Migration
   end
 end
 
+# Dummy class implementing migrate_batch
+class BatchTestMigration < Dekiru::DataMigration::Migration
+  attr_reader :targets, :migrated_batches
+
+  def initialize
+    super
+    @targets = (1..3).to_a.map { |i| OpenStruct.new(id: i) }
+    @migrated_batches = []
+  end
+
+  def migration_targets
+    scope = OpenStruct.new(count: @targets.size)
+
+    # in_batches returns an enumerable that yields each batch as a Relation
+    targets = @targets
+    scope.define_singleton_method(:in_batches) do |&block|
+      targets.each_slice(2).each(&block)
+    end
+
+    scope
+  end
+
+  def migrate_batch(relation)
+    @migrated_batches << relation
+  end
+end
+
 RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/BlockLength
   let(:migration) { TestMigration.new }
 
   describe ".run" do
-    it "Operator.executeを呼び出してmigrateを実行する" do
+    it "calls Operator.execute and runs migrate" do
       allow(Dekiru::DataMigration::Operator).to receive(:execute)
         .with("Test migration", {})
         .and_yield
 
-      # migrateメソッドの呼び出しを確認
+      # Verify that migrate is called
       expect_any_instance_of(TestMigration).to receive(:migrate)
 
       TestMigration.run
     end
 
-    it "オプションをOperator.executeに渡す" do
+    it "passes options to Operator.execute" do
       options = { warning_side_effects: false }
       expect(Dekiru::DataMigration::Operator).to receive(:execute)
         .with("Test migration", options)
@@ -56,13 +83,13 @@ RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/Blo
   end
 
   describe "#title" do
-    it "クラス名から適切なタイトルを生成する" do
+    it "generates an appropriate title from the class name" do
       expect(migration.title).to eq("Test migration")
     end
   end
 
   describe "#migrate" do
-    it "migration_targetsを呼び出してログを出力する" do
+    it "calls migration_targets and outputs logs" do
       allow(migration).to receive(:log)
       allow(migration).to receive(:find_each_with_progress).and_call_original
 
@@ -72,30 +99,63 @@ RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/Blo
     end
   end
 
+  describe "#migrate (batch path)" do
+    let(:batch_migration) { BatchTestMigration.new }
+
+    it "processes batches with each_with_progress when migrate_batch is implemented" do
+      allow(batch_migration).to receive(:log)
+      expect(batch_migration).to receive(:each_with_progress).and_call_original
+      expect(batch_migration).not_to receive(:find_each_with_progress)
+
+      batch_migration.migrate
+
+      # 3 records split into batches of 2 => 2 batches
+      expect(batch_migration.migrated_batches.size).to eq(2)
+    end
+
+    it "processes records with find_each_with_progress when migrate_batch is not implemented" do
+      allow(migration).to receive(:log)
+      expect(migration).to receive(:find_each_with_progress).and_call_original
+      expect(migration).not_to receive(:each_with_progress)
+
+      migration.migrate
+
+      expect(migration.migrated_records.size).to eq(3)
+    end
+  end
+
   describe "#migration_targets" do
-    it "基底クラスでは NotImplementedError を投げる" do
+    it "raises NotImplementedError in the base class" do
       base_migration = described_class.new
       expect { base_migration.migration_targets }.to raise_error(NotImplementedError)
     end
   end
 
   describe "#migrate_record" do
-    it "基底クラスでは NotImplementedError を投げる" do
+    it "raises NotImplementedError in the base class" do
       base_migration = described_class.new
       record = OpenStruct.new(id: 1)
       expect { base_migration.migrate_record(record) }.to raise_error(NotImplementedError)
     end
   end
 
-  describe "テスト時のデフォルト動作" do
+  describe "#migrate_batch" do
+    it "raises NotImplementedError in the base class" do
+      base_migration = described_class.new
+      relation = OpenStruct.new
+      expect { base_migration.migrate_batch(relation) }.to raise_error(NotImplementedError)
+    end
+  end
+
+  describe "default behavior during tests" do
     describe "#log" do
-      it "putsを呼び出す" do
+      it "calls puts" do
         expect { migration.send(:log, "test message") }.to output("test message\n").to_stdout
       end
     end
 
     describe "#find_each_with_progress" do
-      it "プログレスバーなしでfind_eachを呼び出す" do
+      it "calls find_each without a progress bar" do
         scope = migration.migration_targets
         results = []
 
@@ -108,7 +168,7 @@ RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/Blo
     end
 
     describe "#each_with_progress" do
-      it "プログレスバーなしでeachを呼び出す" do
+      it "calls each without a progress bar" do
         enum = [1, 2, 3]
         results = []
 
