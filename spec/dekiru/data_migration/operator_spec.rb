@@ -242,6 +242,35 @@ RSpec.describe Dekiru::DataMigration::Operator do
       expect(operator.stream.out).to include("Finished successfully:")
       expect(operator.stream.out).to include("Total time:")
     end
+
+    it "forwards batch_size to find_each" do
+      allow($stdin).to receive(:gets) { "yes\n" }
+
+      # batch_size is forwarded to find_each(batch_size:), not to the progress bar
+      enumerator = Enumerator.new { |y| y << 99 }
+      expect(Dekiru::DummyRecord).to receive(:find_each).with(batch_size: 5).and_return(enumerator)
+
+      operator.execute do
+        find_each_with_progress(Dekiru::DummyRecord, batch_size: 5) { |_num| }
+      end
+
+      expect(operator.result).to eq(true)
+      expect(operator.error).to eq(nil)
+    end
+
+    it "calls find_each without arguments when batch_size is not given" do
+      allow($stdin).to receive(:gets) { "yes\n" }
+
+      enumerator = Enumerator.new { |y| y << 99 }
+      expect(Dekiru::DummyRecord).to receive(:find_each).with(no_args).and_return(enumerator)
+
+      operator.execute do
+        find_each_with_progress(Dekiru::DummyRecord) { |_num| }
+      end
+
+      expect(operator.result).to eq(true)
+      expect(operator.error).to eq(nil)
+    end
   end
 end
 # rubocop:enable Metrics/BlockLength

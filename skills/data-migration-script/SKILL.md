@@ -79,6 +79,8 @@ def migrate_batch(relation)
 end
 ```
 
+Pass `batch_size` to `run` to change the batch size (default 1000). It applies to both `migrate_batch` (`in_batches`) and `migrate_record` (`find_each`): `MyMigration.run(batch_size: 500)`.
+
 ## Execution and Verification Commands
 
 ```bash

@@ -109,6 +109,14 @@ Dekiru::DataMigration::Operator.execute('Deactivate stale users') do
 end
 ```
 
+#### Specifying the batch size
+
+Pass `batch_size` to `run` to control how many records are fetched per batch. It applies to both paths — `in_batches(of:)` for `migrate_batch` and `find_each(batch_size:)` for `migrate_record`. When omitted, ActiveRecord's default of 1000 is used.
+
+```ruby
+DeactivateStaleUsersMigration.run(batch_size: 500)
+```
+
 ### Testing Migration Classes
 
 The class-based approach makes it easy to write unit tests:
@@ -321,7 +329,7 @@ Available options:
 Outputs log messages. Properly handled even during progress bar display.
 
 ### `find_each_with_progress(scope, options = {}, &block)`
-Executes `find_each` with a progress bar for ActiveRecord scopes.
+Executes `find_each` with a progress bar for ActiveRecord scopes. Pass `batch_size:` in `options` to control how many records are fetched per batch (forwarded to `find_each(batch_size:)`).
 
 ### `each_with_progress(enum, options = {}, &block)`
 Executes processing with a progress bar for any Enumerable objects.

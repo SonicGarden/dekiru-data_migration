@@ -4,9 +4,14 @@ module Dekiru
   module DataMigration
     # Base class for data migration with testable method separation
     class Migration
+      attr_accessor :batch_size
+
       def self.run(options = {})
         migration = new
         title = migration.title
+
+        options = options.dup
+        migration.batch_size = options.delete(:batch_size)
 
         Operator.execute(title, options) do
           migration.instance_variable_set(:@operator_context, self)
@@ -18,20 +23,16 @@ module Dekiru
         self.class.name.demodulize.underscore.humanize
       end
 
-      def migrate # rubocop:disable Metrics/MethodLength
+      def migrate
         targets = migration_targets
 
         log "Target count: #{targets.count}"
         confirm?
 
         if migrate_batch_overridden?
-          each_with_progress(targets.in_batches) do |batch|
-            migrate_batch(batch)
-          end
+          migrate_in_batches(targets)
         else
-          find_each_with_progress(targets) do |record|
-            migrate_record(record)
-          end
+          migrate_each_record(targets)
         end
 
         log "Migration completed"
@@ -50,6 +51,20 @@ module Dekiru
       end
 
       private
+
+      def migrate_in_batches(targets)
+        batches = batch_size ? targets.in_batches(of: batch_size) : targets.in_batches
+        each_with_progress(batches) do |batch|
+          migrate_batch(batch)
+        end
+      end
+
+      def migrate_each_record(targets)
+        options = batch_size ? { batch_size: batch_size } : {}
+        find_each_with_progress(targets, options) do |record|
+          migrate_record(record)
+        end
+      end
 
       def migrate_batch_overridden?
         self.class.instance_method(:migrate_batch).owner != Dekiru::DataMigration::Migration

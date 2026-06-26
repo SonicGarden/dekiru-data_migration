@@ -33,7 +33,7 @@ end
 
 # Dummy class implementing migrate_batch
 class BatchTestMigration < Dekiru::DataMigration::Migration
-  attr_reader :targets, :migrated_batches
+  attr_reader :targets, :migrated_batches, :received_of
 
   def initialize
     super
@@ -44,10 +44,14 @@ class BatchTestMigration < Dekiru::DataMigration::Migration
   def migration_targets
     scope = OpenStruct.new(count: @targets.size)
 
-    # in_batches returns an enumerable that yields each batch as a Relation
+    # in_batches returns an enumerable that yields each batch as a Relation.
+    # Record the requested batch size (of:) so tests can assert it is forwarded.
     targets = @targets
-    scope.define_singleton_method(:in_batches) do |&block|
-      targets.each_slice(2).each(&block)
+    record_of = ->(of) { @received_of = of }
+    scope.define_singleton_method(:in_batches) do |of: nil, &block|
+      record_of.call(of)
+      slice = of || 2
+      targets.each_slice(slice).each(&block)
     end
 
     scope
@@ -79,6 +83,24 @@ RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/Blo
         .with("Test migration", options)
 
       TestMigration.run(options)
+    end
+
+    it "extracts batch_size from the options before passing them to Operator.execute" do
+      # batch_size is consumed by Migration, so Operator.execute must not see it
+      expect(Dekiru::DataMigration::Operator).to receive(:execute)
+        .with("Test migration", { warning_side_effects: false })
+
+      TestMigration.run(batch_size: 500, warning_side_effects: false)
+    end
+
+    it "assigns batch_size to the migration instance" do
+      allow(Dekiru::DataMigration::Operator).to receive(:execute)
+      assigned = nil
+      allow_any_instance_of(TestMigration).to receive(:batch_size=) { |_, value| assigned = value }
+
+      TestMigration.run(batch_size: 500)
+
+      expect(assigned).to eq(500)
     end
   end
 
@@ -121,6 +143,29 @@ RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/Blo
       migration.migrate
 
       expect(migration.migrated_records.size).to eq(3)
+    end
+  end
+
+  describe "#migrate (batch_size)" do
+    let(:batch_migration) { BatchTestMigration.new }
+
+    it "forwards batch_size to in_batches as of:" do
+      allow(batch_migration).to receive(:log)
+      batch_migration.batch_size = 1
+
+      batch_migration.migrate
+
+      expect(batch_migration.received_of).to eq(1)
+      # 3 records split into batches of 1 => 3 batches
+      expect(batch_migration.migrated_batches.size).to eq(3)
+    end
+
+    it "calls in_batches without of: when batch_size is not set" do
+      allow(batch_migration).to receive(:log)
+
+      batch_migration.migrate
+
+      expect(batch_migration.received_of).to be_nil
     end
   end
 
