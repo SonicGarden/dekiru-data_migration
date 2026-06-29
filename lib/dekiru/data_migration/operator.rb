@@ -82,7 +82,10 @@ module Dekiru
       def find_each_with_progress(target_scope, options = {}, &block)
         # `LocalJumpError: no block given (yield)` が出る場合、 find_each メソッドが enumerator を返していない可能性があります
         # 直接 each_with_progress を使うか、 find_each が enumerator を返すように修正してください
-        each_with_progress(target_scope.find_each, options, &block)
+        options = options.dup
+        batch_size = options.delete(:batch_size)
+        scope = batch_size ? target_scope.find_each(batch_size: batch_size) : target_scope.find_each
+        each_with_progress(scope, options, &block)
       end
 
       private

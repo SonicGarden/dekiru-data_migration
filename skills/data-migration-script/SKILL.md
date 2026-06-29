@@ -29,7 +29,7 @@ bin/rails generate maintenance_script <PascalCaseName>
 
 ### 2. Edit the generated file
 
-Implement `migration_targets` and `migrate_record` in the generated file.
+Implement `migration_targets` and `migrate_record` (or `migrate_batch` instead, for bulk-processing a large number of records) in the generated file.
 
 ### Common Operation Patterns
 
@@ -66,6 +66,21 @@ def migrate_record(record)
 end
 ```
 
+**Bulk update/delete a large number of records (batch processing)**:
+
+Implement `migrate_batch` instead of `migrate_record` to receive each batch as an `ActiveRecord::Relation` via `in_batches`, allowing you to run `update_all` / `delete_all` in a single query. Use this to process a large number of records efficiently.
+```ruby
+def migration_targets
+  User.where(active: true).where("last_login_at < ?", 1.year.ago)
+end
+
+def migrate_batch(relation)
+  relation.update_all(active: false)  # one query per batch
+end
+```
+
+Pass `batch_size` to `run` to change the batch size (default 1000). It applies to both `migrate_batch` (`in_batches`) and `migrate_record` (`find_each`): `MyMigration.run(batch_size: 500)`.
+
 ## Execution and Verification Commands
 
 ```bash
@@ -83,4 +98,5 @@ bin/rails runner "p TargetModel.where(...).count"
 
 - `purge` deletes synchronously (immediately removes from storage). Use `purge_later` for async deletion
 - `migration_targets` must return an ActiveRecord relation (processed in batches via `find_each`)
+- `migrate_batch`'s `update_all` / `delete_all` issue SQL directly without running callbacks or validations. `updated_at` is not auto-updated either, so include it explicitly if needed
 - Always verify the target record count before running in production

@@ -4,9 +4,14 @@ module Dekiru
   module DataMigration
     # Base class for data migration with testable method separation
     class Migration
+      attr_accessor :batch_size
+
       def self.run(options = {})
         migration = new
         title = migration.title
+
+        options = options.dup
+        migration.batch_size = options.delete(:batch_size)
 
         Operator.execute(title, options) do
           migration.instance_variable_set(:@operator_context, self)
@@ -24,8 +29,10 @@ module Dekiru
         log "Target count: #{targets.count}"
         confirm?
 
-        find_each_with_progress(targets) do |record|
-          migrate_record(record)
+        if migrate_batch_overridden?
+          migrate_in_batches(targets)
+        else
+          migrate_each_record(targets)
         end
 
         log "Migration completed"
@@ -39,7 +46,29 @@ module Dekiru
         raise NotImplementedError, "#{self.class}#migrate_record must be implemented"
       end
 
+      def migrate_batch(relation)
+        raise NotImplementedError, "#{self.class}#migrate_batch must be implemented"
+      end
+
       private
+
+      def migrate_in_batches(targets)
+        batches = batch_size ? targets.in_batches(of: batch_size) : targets.in_batches
+        each_with_progress(batches) do |batch|
+          migrate_batch(batch)
+        end
+      end
+
+      def migrate_each_record(targets)
+        options = batch_size ? { batch_size: batch_size } : {}
+        find_each_with_progress(targets, options) do |record|
+          migrate_record(record)
+        end
+      end
+
+      def migrate_batch_overridden?
+        self.class.instance_method(:migrate_batch).owner != Dekiru::DataMigration::Migration
+      end
 
       def confirm?
         if @operator_context
