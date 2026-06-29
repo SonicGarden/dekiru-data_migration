@@ -146,6 +146,33 @@ RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/Blo
     end
   end
 
+  describe "#migrate (batch path progress total)" do
+    let(:batch_migration) { BatchTestMigration.new }
+
+    def capture_each_with_progress
+      received = nil
+      allow(batch_migration).to receive(:each_with_progress) do |enum, options = {}, &blk|
+        received = options
+        enum.each(&blk) # Preserve the original behavior (migrated_batches consistency)
+      end
+      yield
+      received
+    end
+
+    it "passes batch count as total to each_with_progress" do
+      allow(batch_migration).to receive(:log)
+      batch_migration.batch_size = 2 # ceil(3/2) => 2
+      opts = capture_each_with_progress { batch_migration.migrate }
+      expect(opts[:total]).to eq(2)
+    end
+
+    it "uses the default batch size (1000) for total when batch_size is not set" do
+      allow(batch_migration).to receive(:log)
+      opts = capture_each_with_progress { batch_migration.migrate } # ceil(3/1000) => 1
+      expect(opts[:total]).to eq(1)
+    end
+  end
+
   describe "#migrate (batch_size)" do
     let(:batch_migration) { BatchTestMigration.new }
 

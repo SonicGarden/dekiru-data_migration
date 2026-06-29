@@ -4,6 +4,9 @@ module Dekiru
   module DataMigration
     # Base class for data migration with testable method separation
     class Migration
+      # Default batch size used by ActiveRecord's `in_batches` when `of:` is not given
+      DEFAULT_BATCH_SIZE = 1000
+
       attr_accessor :batch_size
 
       def self.run(options = {})
@@ -26,11 +29,12 @@ module Dekiru
       def migrate
         targets = migration_targets
 
-        log "Target count: #{targets.count}"
+        target_count = targets.count
+        log "Target count: #{target_count}"
         confirm?
 
         if migrate_batch_overridden?
-          migrate_in_batches(targets)
+          migrate_in_batches(targets, target_count)
         else
           migrate_each_record(targets)
         end
@@ -52,9 +56,11 @@ module Dekiru
 
       private
 
-      def migrate_in_batches(targets)
+      def migrate_in_batches(targets, target_count)
+        size = batch_size || DEFAULT_BATCH_SIZE
         batches = batch_size ? targets.in_batches(of: batch_size) : targets.in_batches
-        each_with_progress(batches) do |batch|
+        total = (target_count.to_f / size).ceil
+        each_with_progress(batches, total: total) do |batch|
           migrate_batch(batch)
         end
       end

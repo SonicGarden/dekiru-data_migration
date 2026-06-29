@@ -51,6 +51,20 @@ class ActiveRecord::Base # rubocop:disable Style/ClassAndModuleChildren
   end
 end
 
+# Mimics ActiveRecord::Batches::BatchEnumerator, which is Enumerable but does NOT respond to #size.
+class Dekiru::DummyBatchEnumerator # rubocop:disable Style/ClassAndModuleChildren
+  include Enumerable
+
+  def initialize(batches)
+    @batches = batches
+  end
+
+  def each(&block)
+    @batches.each(&block)
+  end
+  # Intentionally does not define #size, to reproduce the NoMethodError from BatchEnumerator.
+end
+
 RSpec.describe Dekiru::DataMigration::Operator do
   let(:dummy_stream) do
     Dekiru::DummyStream.new
@@ -193,6 +207,36 @@ RSpec.describe Dekiru::DataMigration::Operator do
       expect(operator.stream.out).to include("pass total as option:")
       expect(operator.stream.out).to include("Finished successfully:")
       expect(operator.stream.out).to include("Total time:")
+    end
+
+    it "uses the given total (percent format) even when the enum has no size" do
+      allow($stdin).to receive(:gets) { "yes\n" }
+      enum = Dekiru::DummyBatchEnumerator.new([[1, 2], [3]])
+
+      # Passing total: bypasses the enum.size lookup, so a size-less enum like
+      # ActiveRecord's BatchEnumerator gets a real percentage format ("%p%%"), not "??%".
+      expect(ProgressBar).to receive(:create)
+        .with(hash_including(total: 2, format: "%a |%b>>%i| %p%% %t"))
+        .and_call_original
+
+      operator.execute do
+        each_with_progress(enum, title: "batches", total: 2) { |_batch| }
+      end
+    end
+
+    it "falls back to the ??% format when size is unavailable and no total is given" do
+      allow($stdin).to receive(:gets) { "yes\n" }
+      enum = Dekiru::DummyBatchEnumerator.new([[1, 2], [3]])
+
+      # enum.size raises NoMethodError -> total stays nil -> "??%" format.
+      # This characterizes why migrate_in_batches must pass total: explicitly.
+      expect(ProgressBar).to receive(:create)
+        .with(hash_including(total: nil, format: "%a |%b>>%i| ??%% %t"))
+        .and_call_original
+
+      operator.execute do
+        each_with_progress(enum, title: "batches") { |_batch| }
+      end
     end
   end
 
