@@ -62,7 +62,7 @@ class BatchTestMigration < Dekiru::DataMigration::Migration
   end
 end
 
-RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/BlockLength
+RSpec.describe Dekiru::DataMigration::Migration do
   let(:migration) { TestMigration.new }
 
   describe ".run" do

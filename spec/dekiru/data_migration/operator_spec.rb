@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/BlockLength
 require "spec_helper"
 
 class Dekiru::DummyStream # rubocop:disable Style/ClassAndModuleChildren
@@ -317,4 +316,3 @@ RSpec.describe Dekiru::DataMigration::Operator do
     end
   end
 end
-# rubocop:enable Metrics/BlockLength
