@@ -12,7 +12,13 @@ module Dekiru
 
       attr_reader :title, :stream, :logger, :result, :canceled, :started_at, :ended_at, :error
 
+      DEPRECATOR = ActiveSupport::Deprecation.new("2.0", "Dekiru::DataMigration")
+
       def self.execute(title, options = {}, &block)
+        DEPRECATOR.warn(
+          "Dekiru::DataMigration::Operator.execute is deprecated and will be removed in 2.0. " \
+          "Use Dekiru::DataMigration::Migration subclass instead."
+        )
         new(title, options).execute(&block)
       end
 

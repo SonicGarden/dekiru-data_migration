@@ -32,27 +32,9 @@ Or install it yourself as:
 $ gem install dekiru-data_migration
 ```
 
-## Data Migration Operator
+## Data Migration Class
 
-You can implement the necessary processing for data migration tasks with scripts like the following:
-
-```ruby
-# scripts/demo.rb
-Dekiru::DataMigration::Operator.execute('Grant admin privileges to users') do
-  targets = User.where("email LIKE '%sonicgarden%'")
-
-  log "Target user count: #{targets.count}"
-  find_each_with_progress(targets) do |user|
-    user.update!(admin: true)
-  end
-
-  log "Updated user count: #{User.where("email LIKE '%sonicgarden%'").where(admin: true).count}"
-end
-```
-
-## Data Migration Class (Recommended)
-
-You can also define migration logic as a class, which makes testing easier:
+Define migration logic as a class:
 
 ```ruby
 # scripts/20230118_demo_migration.rb
@@ -93,20 +75,6 @@ class DeactivateStaleUsersMigration < Dekiru::DataMigration::Migration
 end
 
 DeactivateStaleUsersMigration.run
-```
-
-If you use the block-based `Operator` directly, pass `in_batches` to `each_with_progress`:
-
-```ruby
-# scripts/deactivate_stale_users.rb
-Dekiru::DataMigration::Operator.execute('Deactivate stale users') do
-  targets = User.where(active: true).where("last_login_at < ?", 1.year.ago)
-
-  log "Target user count: #{targets.count}"
-  each_with_progress(targets.in_batches) do |batch|
-    batch.update_all(active: false)
-  end
-end
 ```
 
 #### Specifying the batch size
@@ -164,12 +132,10 @@ Total time: 6.35 sec
 
 ## Side Effect Monitoring
 
-By executing with the `warning_side_effects: true` option, side effects that occur during data migration tasks (database writes, job enqueuing, email sending, etc.) will be displayed.
+By passing `warning_side_effects: true` to `run`, side effects that occur during data migration tasks (database writes, job enqueuing, email sending, etc.) will be displayed.
 
 ```ruby
-Dekiru::DataMigration::Operator.execute('Grant admin privileges to users', warning_side_effects: true) do
-  # Processing content...
-end
+DemoMigration.run(warning_side_effects: true)
 ```
 
 Execution result:
@@ -208,30 +174,19 @@ Generated file example:
 
 class DemoMigration < Dekiru::DataMigration::Migration
   def migration_targets
-    # 移行対象を返すActiveRecord::Relationを定義
-    # 例: User.where(some_condition: true)
+    # Return an ActiveRecord::Relation of records to migrate
+    # e.g. User.where(some_condition: true)
     raise NotImplementedError, 'migration_targets method must be implemented'
   end
 
   def migrate_record(record)
-    # 個別レコードの更新処理を定義
-    # 例: record.update!(some_attribute: new_value)
+    # Define the update logic for each record
+    # e.g. record.update!(some_attribute: new_value)
     raise NotImplementedError, 'migrate_record method must be implemented'
   end
 end
 
 DemoMigration.run
-```
-
-### Legacy Block-based Approach
-
-For backward compatibility, you can still use the block-based approach:
-
-```ruby
-# scripts/legacy_demo.rb
-Dekiru::DataMigration::Operator.execute('demo_migration') do
-  # write here
-end
 ```
 
 ### Output Directory Configuration
@@ -311,10 +266,10 @@ end
 
 ### Runtime Options
 
+Pass options to `Migration.run`:
+
 ```ruby
-Dekiru::DataMigration::Operator.execute('Title', options) do
-  # Processing content
-end
+DemoMigration.run(warning_side_effects: true, without_transaction: false)
 ```
 
 Available options:

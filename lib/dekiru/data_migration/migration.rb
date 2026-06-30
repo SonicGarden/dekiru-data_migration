@@ -16,7 +16,7 @@ module Dekiru
         options = options.dup
         migration.batch_size = options.delete(:batch_size)
 
-        Operator.execute(title, options) do
+        Operator.new(title, options).execute do
           migration.instance_variable_set(:@operator_context, self)
           migration.migrate
         end
