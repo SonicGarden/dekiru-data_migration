@@ -62,39 +62,40 @@ class BatchTestMigration < Dekiru::DataMigration::Migration
   end
 end
 
-RSpec.describe Dekiru::DataMigration::Migration do # rubocop:disable Metrics/BlockLength
+RSpec.describe Dekiru::DataMigration::Migration do
   let(:migration) { TestMigration.new }
 
   describe ".run" do
-    it "calls Operator.execute and runs migrate" do
-      allow(Dekiru::DataMigration::Operator).to receive(:execute)
-        .with("Test migration", {})
-        .and_yield
+    let(:operator) { instance_double(Dekiru::DataMigration::Operator, execute: nil) }
 
-      # Verify that migrate is called
-      expect_any_instance_of(TestMigration).to receive(:migrate)
+    before do
+      allow(Dekiru::DataMigration::Operator).to receive(:new).and_return(operator)
+    end
+
+    it "instantiates Operator with title and options and calls execute" do
+      expect(Dekiru::DataMigration::Operator).to receive(:new).with("Test migration", {}).and_return(operator)
+      expect(operator).to receive(:execute)
 
       TestMigration.run
     end
 
-    it "passes options to Operator.execute" do
+    it "passes options to Operator.new" do
       options = { warning_side_effects: false }
-      expect(Dekiru::DataMigration::Operator).to receive(:execute)
-        .with("Test migration", options)
+      expect(Dekiru::DataMigration::Operator).to receive(:new).with("Test migration", options).and_return(operator)
 
       TestMigration.run(options)
     end
 
-    it "extracts batch_size from the options before passing them to Operator.execute" do
-      # batch_size is consumed by Migration, so Operator.execute must not see it
-      expect(Dekiru::DataMigration::Operator).to receive(:execute)
+    it "extracts batch_size from the options before passing them to Operator.new" do
+      # batch_size is consumed by Migration, so Operator must not see it
+      expect(Dekiru::DataMigration::Operator).to receive(:new)
         .with("Test migration", { warning_side_effects: false })
+        .and_return(operator)
 
       TestMigration.run(batch_size: 500, warning_side_effects: false)
     end
 
     it "assigns batch_size to the migration instance" do
-      allow(Dekiru::DataMigration::Operator).to receive(:execute)
       assigned = nil
       allow_any_instance_of(TestMigration).to receive(:batch_size=) { |_, value| assigned = value }
 
